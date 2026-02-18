@@ -47,7 +47,7 @@ func (m *mockNodeService) ReceiveBlock(b *Block) error {
 	return nil
 }
 
-func (m *mockNodeService) ProposeTransaction(data *TransactionData, fromSignature string) error {
+func (m *mockNodeService) ProposeTransaction(data *TransactionData) error {
 	m.proposeCalled = true
 	return m.proposeErr
 }
@@ -284,11 +284,10 @@ func TestHandlePropose(t *testing.T) {
 	server := NewServer(":8080", mock)
 
 	reqBody := map[string]any{
-		"from":           "alice",
-		"to":             "bob",
-		"amount":         1000,
-		"title":          "飲み会代",
-		"from_signature": "signature123",
+		"from":   "alice",
+		"to":     "bob",
+		"amount": 1000,
+		"title":  "飲み会代",
 	}
 	body, _ := json.Marshal(reqBody)
 	req := httptest.NewRequest("POST", "/transaction/propose", nil)

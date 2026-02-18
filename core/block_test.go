@@ -40,7 +40,7 @@ func TestNewBlock(t *testing.T) {
 }
 
 func TestNewGenesisBlock(t *testing.T) {
-	genesis := NewGenesisBlock()
+	genesis := NewGenesisBlock(&AddNodeData{})
 
 	if genesis.Header.Index != 0 {
 		t.Errorf("Genesis Index = %d, want 0", genesis.Header.Index)
@@ -393,7 +393,7 @@ func TestParseBlockType(t *testing.T) {
 }
 
 func TestIsGenesisBlock(t *testing.T) {
-	genesis := NewGenesisBlock()
+	genesis := NewGenesisBlock(&AddNodeData{})
 	if !genesis.IsGenesisBlock() {
 		t.Error("NewGenesisBlock should be recognized as genesis block")
 	}

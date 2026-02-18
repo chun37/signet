@@ -61,9 +61,9 @@ func NewBlock(index int, prevHash string, payload BlockPayload) *Block {
 }
 
 // NewGenesisBlock はジェネシスブロックを生成する
-func NewGenesisBlock() *Block {
-	// 空のAddNodeDataをペイロードにする
-	data, _ := json.Marshal(AddNodeData{})
+// addNode に初期化ノードの情報を渡す
+func NewGenesisBlock(addNode *AddNodeData) *Block {
+	data, _ := json.Marshal(addNode)
 	payload := BlockPayload{
 		Type:          "add_node",
 		Data:          json.RawMessage(data),

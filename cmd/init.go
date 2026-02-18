@@ -65,8 +65,16 @@ func RunInit(args []string) {
 		os.Exit(1)
 	}
 
-	// ジェネシスブロック生成
-	genesis := core.NewGenesisBlock()
+	// 自ノード情報
+	pubKeyHex := hex.EncodeToString(pubKey)
+
+	// ジェネシスブロック生成（初期化ノードの情報を含む）
+	genesis := core.NewGenesisBlock(&core.AddNodeData{
+		PublicKey: pubKeyHex,
+		NodeName:  *nodename,
+		NickName:  *nickname,
+		Address:   *addr,
+	})
 
 	// block.jsonl に書き込み
 	blockStore := storage.NewBlockStore(cfg.BlockFilePath())
@@ -77,7 +85,6 @@ func RunInit(args []string) {
 
 	// 自ノード情報をnodesディレクトリに保存
 	nodeStore := storage.NewNodeStore(cfg.NodesDir())
-	pubKeyHex := hex.EncodeToString(pubKey)
 	nodeInfo := &storage.NodeInfo{
 		Name:      *nodename,
 		NickName:  *nickname,

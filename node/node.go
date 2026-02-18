@@ -55,8 +55,8 @@ func NewNode(cfg *config.Config) (*Node, error) {
 
 	var chain *core.Chain
 	if len(blocks) == 0 {
-		// ブロックがなければジェネシスブロックで初期化
-		chain = core.NewChain()
+		// ブロックがなければジェネシスブロックで初期化（フォールバック）
+		chain = core.NewChain(&core.AddNodeData{})
 	} else {
 		// ストレージのブロックからチェーンを直接構築（ジェネシス二重生成を防止）
 		var chainErr error
@@ -146,7 +146,7 @@ func (n *Node) ReceiveBlock(b *server.Block) error {
 }
 
 // ProposeTransaction はトランザクションを提案する
-func (n *Node) ProposeTransaction(data *server.TransactionData, fromSignature string) error {
+func (n *Node) ProposeTransaction(data *server.TransactionData) error {
 	// 署名用ペイロード作成
 	txData := &core.TransactionData{
 		From:   data.From,
@@ -160,6 +160,9 @@ func (n *Node) ProposeTransaction(data *server.TransactionData, fromSignature st
 	if err != nil {
 		return fmt.Errorf("failed to marshal transaction data: %w", err)
 	}
+
+	// From側の署名を自動生成
+	fromSignature := crypto.Sign(n.PrivKey, txDataBytes)
 
 	// BlockPayload作成
 	payload := core.BlockPayload{

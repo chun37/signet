@@ -6,15 +6,14 @@ import (
 )
 
 // handlePropose はトランザクション提案を処理する
-// リクエスト: {"from": "alice", "to": "bob", "amount": 1000, "title": "飲み会代", "from_signature": "..."}
+// リクエスト: {"from": "alice", "to": "bob", "amount": 1000, "title": "飲み会代"}
 // レスポンス: {"status": "proposed", "message": "Transaction proposed to bob"}
 func (s *Server) handlePropose(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		From          string `json:"from"`
-		To            string `json:"to"`
-		Amount        int64  `json:"amount"`
-		Title         string `json:"title"`
-		FromSignature string `json:"from_signature"`
+		From   string `json:"from"`
+		To     string `json:"to"`
+		Amount int64  `json:"amount"`
+		Title  string `json:"title"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -29,7 +28,7 @@ func (s *Server) handlePropose(w http.ResponseWriter, r *http.Request) {
 		Title:  req.Title,
 	}
 
-	if err := s.node.ProposeTransaction(data, req.FromSignature); err != nil {
+	if err := s.node.ProposeTransaction(data); err != nil {
 		writeError(w, http.StatusBadRequest, "Failed to propose transaction: "+err.Error())
 		return
 	}

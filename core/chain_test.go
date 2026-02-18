@@ -6,7 +6,7 @@ import (
 )
 
 func TestNewChain(t *testing.T) {
-	chain := NewChain()
+	chain := NewChain(&AddNodeData{})
 
 	if chain.Len() != 1 {
 		t.Errorf("NewChain length = %d, want 1", chain.Len())
@@ -23,7 +23,7 @@ func TestNewChain(t *testing.T) {
 }
 
 func TestAddBlock(t *testing.T) {
-	chain := NewChain()
+	chain := NewChain(&AddNodeData{})
 
 	tx := &TransactionData{
 		From:   "node1",
@@ -52,7 +52,7 @@ func TestAddBlock(t *testing.T) {
 }
 
 func TestAddBlock_InvalidPrevHash(t *testing.T) {
-	chain := NewChain()
+	chain := NewChain(&AddNodeData{})
 
 	tx := &TransactionData{From: "a", To: "b", Amount: 100, Title: "test"}
 	block, _ := CreateBlockWithTransaction(1, "wronghash", tx, "sig1", "sig2")
@@ -64,7 +64,7 @@ func TestAddBlock_InvalidPrevHash(t *testing.T) {
 }
 
 func TestAddBlock_Duplicate(t *testing.T) {
-	chain := NewChain()
+	chain := NewChain(&AddNodeData{})
 
 	tx := &TransactionData{From: "a", To: "b", Amount: 100, Title: "test"}
 	block, _ := CreateBlockWithTransaction(1, chain.GetLastHash(), tx, "sig1", "sig2")
@@ -79,7 +79,7 @@ func TestAddBlock_Duplicate(t *testing.T) {
 }
 
 func TestAddBlock_InvalidHash(t *testing.T) {
-	chain := NewChain()
+	chain := NewChain(&AddNodeData{})
 
 	tx := &TransactionData{From: "a", To: "b", Amount: 100, Title: "test"}
 	data, _ := SetTransactionData(tx)
@@ -106,7 +106,7 @@ func TestAddBlock_InvalidHash(t *testing.T) {
 }
 
 func TestGetBlocks(t *testing.T) {
-	chain := NewChain()
+	chain := NewChain(&AddNodeData{})
 
 	blocks := chain.GetBlocks()
 	if len(blocks) != 1 {
@@ -123,7 +123,7 @@ func TestGetBlocks(t *testing.T) {
 }
 
 func TestLastBlock(t *testing.T) {
-	chain := NewChain()
+	chain := NewChain(&AddNodeData{})
 
 	last := chain.LastBlock()
 	if last == nil {
@@ -142,7 +142,7 @@ func TestLastBlock(t *testing.T) {
 }
 
 func TestLen(t *testing.T) {
-	chain := NewChain()
+	chain := NewChain(&AddNodeData{})
 
 	if chain.Len() != 1 {
 		t.Errorf("Len = %d, want 1", chain.Len())
@@ -161,7 +161,7 @@ func TestLen(t *testing.T) {
 }
 
 func TestValidateChain_ValidChain(t *testing.T) {
-	chain := NewChain()
+	chain := NewChain(&AddNodeData{})
 
 	// 複数ブロックを追加
 	for i := 0; i < 5; i++ {
@@ -188,7 +188,7 @@ func TestValidateChain_EmptyChain(t *testing.T) {
 }
 
 func TestReplaceChain_LongerChain(t *testing.T) {
-	chain1 := NewChain()
+	chain1 := NewChain(&AddNodeData{})
 
 	// chain1に3ブロック追加
 	for i := 0; i < 3; i++ {
@@ -198,7 +198,7 @@ func TestReplaceChain_LongerChain(t *testing.T) {
 	}
 
 	// より長いチェーンを作成
-	chain2 := NewChain()
+	chain2 := NewChain(&AddNodeData{})
 	for i := 0; i < 5; i++ {
 		tx := &TransactionData{From: "a", To: "b", Amount: 100, Title: "test"}
 		block, _ := CreateBlockWithTransaction(i+1, chain2.GetLastHash(), tx, "sig1", "sig2")
@@ -217,7 +217,7 @@ func TestReplaceChain_LongerChain(t *testing.T) {
 }
 
 func TestReplaceChain_ShorterChain(t *testing.T) {
-	chain1 := NewChain()
+	chain1 := NewChain(&AddNodeData{})
 
 	// chain1に5ブロック追加
 	for i := 0; i < 5; i++ {
@@ -227,7 +227,7 @@ func TestReplaceChain_ShorterChain(t *testing.T) {
 	}
 
 	// 短いチェーンを作成
-	chain2 := NewChain()
+	chain2 := NewChain(&AddNodeData{})
 	tx := &TransactionData{From: "a", To: "b", Amount: 100, Title: "test"}
 	block, _ := CreateBlockWithTransaction(1, chain2.GetLastHash(), tx, "sig1", "sig2")
 	chain2.AddBlock(block)
@@ -240,10 +240,10 @@ func TestReplaceChain_ShorterChain(t *testing.T) {
 }
 
 func TestReplaceChain_BrokenChain(t *testing.T) {
-	chain := NewChain()
+	chain := NewChain(&AddNodeData{})
 
 	// 不正なチェーンを作成（連結が壊れている）
-	genesis := NewGenesisBlock()
+	genesis := NewGenesisBlock(&AddNodeData{})
 	tx := &TransactionData{From: "a", To: "b", Amount: 100, Title: "test"}
 	brokenBlock, _ := CreateBlockWithTransaction(2, "wronghash", tx, "sig1", "sig2")
 
@@ -256,7 +256,7 @@ func TestReplaceChain_BrokenChain(t *testing.T) {
 }
 
 func TestHasBlock(t *testing.T) {
-	chain := NewChain()
+	chain := NewChain(&AddNodeData{})
 
 	genesisHash := chain.LastBlock().Header.Hash
 	if !chain.HasBlock(genesisHash) {
@@ -278,7 +278,7 @@ func TestHasBlock(t *testing.T) {
 }
 
 func TestGetBlockByIndex(t *testing.T) {
-	chain := NewChain()
+	chain := NewChain(&AddNodeData{})
 
 	// ジェネシスブロック
 	block, err := chain.GetBlockByIndex(0)
@@ -303,7 +303,7 @@ func TestGetBlockByIndex(t *testing.T) {
 }
 
 func TestGetBlockByHash(t *testing.T) {
-	chain := NewChain()
+	chain := NewChain(&AddNodeData{})
 
 	genesis := chain.LastBlock()
 	block, err := chain.GetBlockByHash(genesis.Header.Hash)
@@ -323,7 +323,7 @@ func TestGetBlockByHash(t *testing.T) {
 }
 
 func TestGetLastHash(t *testing.T) {
-	chain := NewChain()
+	chain := NewChain(&AddNodeData{})
 
 	lastHash := chain.GetLastHash()
 	if lastHash == "" {
@@ -337,7 +337,7 @@ func TestGetLastHash(t *testing.T) {
 }
 
 func TestGetLastIndex(t *testing.T) {
-	chain := NewChain()
+	chain := NewChain(&AddNodeData{})
 
 	if chain.GetLastIndex() != 0 {
 		t.Errorf("GetLastIndex = %d, want 0", chain.GetLastIndex())
@@ -354,7 +354,7 @@ func TestGetLastIndex(t *testing.T) {
 }
 
 func TestClone(t *testing.T) {
-	chain := NewChain()
+	chain := NewChain(&AddNodeData{})
 
 	// ブロック追加
 	tx := &TransactionData{From: "a", To: "b", Amount: 100, Title: "test"}
@@ -384,7 +384,7 @@ func TestClone(t *testing.T) {
 }
 
 func TestForEach(t *testing.T) {
-	chain := NewChain()
+	chain := NewChain(&AddNodeData{})
 
 	// ブロック追加
 	for i := 0; i < 3; i++ {

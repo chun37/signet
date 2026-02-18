@@ -18,7 +18,7 @@ type NodeService interface {
 	ReceiveBlock(b *Block) error
 
 	// Transaction operations
-	ProposeTransaction(data *TransactionData, fromSignature string) error
+	ProposeTransaction(data *TransactionData) error
 	ApproveTransaction(id string) (*Block, error)
 	ListPending() []*PendingTransaction
 	GetPending(id string) *PendingTransaction
