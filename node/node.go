@@ -18,6 +18,11 @@ import (
 	"time"
 )
 
+// httpClient はタイムアウト付きHTTPクライアント
+var httpClient = &http.Client{
+	Timeout: 10 * time.Second,
+}
+
 // Node は全コンポーネントを統合するノード構造体
 type Node struct {
 	Config       *config.Config
@@ -105,6 +110,62 @@ func (n *Node) GetChainLen() int {
 	return n.Chain.Len()
 }
 
+// verifyBlockSignatures はトランザクションブロックの署名を暗号学的に検証する
+func (n *Node) verifyBlockSignatures(block *core.Block) error {
+	if block.Payload.Type != "transaction" {
+		return nil // add_node ブロックには署名不要
+	}
+
+	txData, err := block.GetTransactionData()
+	if err != nil {
+		return fmt.Errorf("failed to get transaction data: %w", err)
+	}
+
+	txDataBytes, err := json.Marshal(txData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal transaction data: %w", err)
+	}
+
+	peers, err := n.NodeStore.LoadAll()
+	if err != nil {
+		return fmt.Errorf("failed to load peers for signature verification: %w", err)
+	}
+
+	// From 署名検証
+	if block.Payload.FromSignature == "" {
+		return fmt.Errorf("missing from signature")
+	}
+	fromPeer, ok := peers[txData.From]
+	if !ok {
+		return fmt.Errorf("unknown from node: %s", txData.From)
+	}
+	fromPubKey, err := crypto.HexToPublicKey(fromPeer.PublicKey)
+	if err != nil {
+		return fmt.Errorf("failed to decode from node's public key: %w", err)
+	}
+	if !crypto.Verify(fromPubKey, txDataBytes, block.Payload.FromSignature) {
+		return fmt.Errorf("invalid from signature")
+	}
+
+	// To 署名検証
+	if block.Payload.ToSignature == "" {
+		return fmt.Errorf("missing to signature")
+	}
+	toPeer, ok := peers[txData.To]
+	if !ok {
+		return fmt.Errorf("unknown to node: %s", txData.To)
+	}
+	toPubKey, err := crypto.HexToPublicKey(toPeer.PublicKey)
+	if err != nil {
+		return fmt.Errorf("failed to decode to node's public key: %w", err)
+	}
+	if !crypto.Verify(toPubKey, txDataBytes, block.Payload.ToSignature) {
+		return fmt.Errorf("invalid to signature")
+	}
+
+	return nil
+}
+
 // ReceiveBlock はブロックを受信してチェーンに追加する
 func (n *Node) ReceiveBlock(b *server.Block) error {
 	coreBlock := convertServerToBlock(b)
@@ -112,6 +173,11 @@ func (n *Node) ReceiveBlock(b *server.Block) error {
 	// ハッシュ再計算チェック
 	if err := core.ValidateBlock(coreBlock); err != nil {
 		return fmt.Errorf("block validation failed: %w", err)
+	}
+
+	// 署名検証
+	if err := n.verifyBlockSignatures(coreBlock); err != nil {
+		return fmt.Errorf("signature verification failed: %w", err)
 	}
 
 	lastHash := n.Chain.GetLastHash()
@@ -146,7 +212,9 @@ func (n *Node) ReceiveBlock(b *server.Block) error {
 }
 
 // ProposeTransaction はトランザクションを提案する
-func (n *Node) ProposeTransaction(data *server.TransactionData) error {
+// fromSignature が空の場合は自ノードの秘密鍵で自動署名する（ローカル提案）
+// fromSignature が指定されている場合はそのまま使用する（他ノードからの転送）
+func (n *Node) ProposeTransaction(data *server.TransactionData, fromSignature string) error {
 	// 署名用ペイロード作成
 	txData := &core.TransactionData{
 		From:   data.From,
@@ -161,8 +229,10 @@ func (n *Node) ProposeTransaction(data *server.TransactionData) error {
 		return fmt.Errorf("failed to marshal transaction data: %w", err)
 	}
 
-	// From側の署名を自動生成
-	fromSignature := crypto.Sign(n.PrivKey, txDataBytes)
+	// From側の署名（未指定の場合は自動生成）
+	if fromSignature == "" {
+		fromSignature = crypto.Sign(n.PrivKey, txDataBytes)
+	}
 
 	// BlockPayload作成
 	payload := core.BlockPayload{
@@ -227,7 +297,7 @@ func (n *Node) sendProposeTransaction(addr string, tx *core.PendingTransaction) 
 	}
 
 	url := fmt.Sprintf("http://%s/transaction/propose", addr)
-	resp, err := http.Post(url, "application/json", bytes.NewReader(data))
+	resp, err := httpClient.Post(url, "application/json", bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}
@@ -256,12 +326,12 @@ func (n *Node) ApproveTransaction(id string) (*server.Block, error) {
 		return nil, fmt.Errorf("failed to get transaction data: %w", err)
 	}
 
-	// 自分（To）の署名を追加
-	signingPayload, _ := json.Marshal(map[string]interface{}{
-		"type": "transaction",
-		"data": txData,
-	})
-	toSignature := crypto.Sign(n.PrivKey, signingPayload)
+	// 自分（To）の署名を追加（From署名と同じ形式: トランザクションデータに対して署名）
+	txDataBytes, err := json.Marshal(txData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal transaction data for signing: %w", err)
+	}
+	toSignature := crypto.Sign(n.PrivKey, txDataBytes)
 
 	// ブロック生成
 	lastBlock := n.Chain.LastBlock()
@@ -493,7 +563,7 @@ func (n *Node) SyncChain() error {
 // fetchChain は指定したアドレスからチェーンを取得する
 func (n *Node) fetchChain(addr string) ([]*server.Block, error) {
 	url := fmt.Sprintf("http://%s/chain", addr)
-	resp, err := http.Get(url)
+	resp, err := httpClient.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}

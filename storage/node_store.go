@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"signet/config"
+	"strings"
 )
 
 // NodeStore はノード情報の永続化を担当する
@@ -17,17 +18,36 @@ func NewNodeStore(dir string) *NodeStore {
 	return &NodeStore{dir: dir}
 }
 
+// validateNodeName はノード名がファイルシステム上安全かを検証する
+func validateNodeName(name string) error {
+	if name == "" {
+		return fmt.Errorf("node name is empty")
+	}
+	if strings.Contains(name, "/") || strings.Contains(name, "\\") || strings.Contains(name, "..") {
+		return fmt.Errorf("node name contains invalid characters: %s", name)
+	}
+	if name == "." {
+		return fmt.Errorf("node name is invalid: %s", name)
+	}
+	return nil
+}
+
 // Save はノード情報をファイルに保存する
 func (s *NodeStore) Save(nodeName string, info *NodeInfo) error {
+	// パストラバーサル防止
+	if err := validateNodeName(nodeName); err != nil {
+		return fmt.Errorf("invalid node name: %w", err)
+	}
+
 	// ディレクトリが存在しない場合は作成
 	if err := os.MkdirAll(s.dir, 0755); err != nil {
 		return fmt.Errorf("failed to create nodes directory: %w", err)
 	}
 
-	// TOML形式で保存
-	content := fmt.Sprintf("NickName = %s\n", info.NickName)
-	content += fmt.Sprintf("Address = %s\n", info.Address)
-	content += fmt.Sprintf("Ed25519PublicKey = %s\n", info.PublicKey)
+	// TOML形式で保存（値を引用符で囲む）
+	content := fmt.Sprintf("NickName = \"%s\"\n", info.NickName)
+	content += fmt.Sprintf("Address = \"%s\"\n", info.Address)
+	content += fmt.Sprintf("Ed25519PublicKey = \"%s\"\n", info.PublicKey)
 
 	filePath := filepath.Join(s.dir, nodeName)
 	if err := writeFile(filePath, content); err != nil {
@@ -39,6 +59,9 @@ func (s *NodeStore) Save(nodeName string, info *NodeInfo) error {
 
 // Load は指定されたノード名の情報を読み込む
 func (s *NodeStore) Load(nodeName string) (*NodeInfo, error) {
+	if err := validateNodeName(nodeName); err != nil {
+		return nil, fmt.Errorf("invalid node name: %w", err)
+	}
 	filePath := filepath.Join(s.dir, nodeName)
 
 	values, err := config.ParseTOMLFile(filePath)
@@ -86,6 +109,9 @@ func (s *NodeStore) LoadAll() (map[string]*NodeInfo, error) {
 
 // Delete は指定されたノード名の情報を削除する
 func (s *NodeStore) Delete(nodeName string) error {
+	if err := validateNodeName(nodeName); err != nil {
+		return fmt.Errorf("invalid node name: %w", err)
+	}
 	filePath := filepath.Join(s.dir, nodeName)
 	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to delete node file: %w", err)
@@ -95,6 +121,9 @@ func (s *NodeStore) Delete(nodeName string) error {
 
 // Exists は指定されたノードが存在するかを確認する
 func (s *NodeStore) Exists(nodeName string) bool {
+	if err := validateNodeName(nodeName); err != nil {
+		return false
+	}
 	filePath := filepath.Join(s.dir, nodeName)
 	_, err := os.Stat(filePath)
 	return err == nil

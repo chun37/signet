@@ -40,7 +40,7 @@ func TestNodeStoreSave(t *testing.T) {
 
 		// 内容を確認
 		content, _ := readFile(filePath)
-		expectedContent := "NickName = 田中\nAddress = 10.0.0.1\nEd25519PublicKey = test_public_key\n"
+		expectedContent := "NickName = \"田中\"\nAddress = \"10.0.0.1\"\nEd25519PublicKey = \"test_public_key\"\n"
 		if string(content) != expectedContent {
 			t.Errorf("File content = %q, want %q", string(content), expectedContent)
 		}
@@ -67,6 +67,32 @@ func TestNodeStoreSave(t *testing.T) {
 			t.Error("Save() did not create directory")
 		}
 	})
+}
+
+func TestNodeStorePathTraversal(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := NewNodeStore(tmpDir)
+
+	info := &NodeInfo{Name: "evil", NickName: "Evil", Address: "1.2.3.4", PublicKey: "key"}
+
+	tests := []struct {
+		name     string
+		nodeName string
+	}{
+		{"dot-dot-slash", "../evil"},
+		{"slash", "sub/evil"},
+		{"backslash", "sub\\evil"},
+		{"dot-dot", ".."},
+		{"dot", "."},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := store.Save(tt.nodeName, info); err == nil {
+				t.Errorf("Save(%q) should return error for path traversal", tt.nodeName)
+			}
+		})
+	}
 }
 
 func TestNodeStoreLoad(t *testing.T) {

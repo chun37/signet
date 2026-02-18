@@ -47,7 +47,7 @@ func (m *mockNodeService) ReceiveBlock(b *Block) error {
 	return nil
 }
 
-func (m *mockNodeService) ProposeTransaction(data *TransactionData) error {
+func (m *mockNodeService) ProposeTransaction(data *TransactionData, fromSignature string) error {
 	m.proposeCalled = true
 	return m.proposeErr
 }

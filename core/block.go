@@ -223,19 +223,9 @@ func (b *Block) HashWithoutSignature() (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// VerifySignatures はブロックの署名を検証する（公開鍵検証は呼び出し側で行う）
-func (b *Block) VerifySignatures() (fromSigValid, toSigValid bool, err error) {
-	signingData, err := MakeSigningPayload(&b.Payload)
-	if err != nil {
-		return false, false, err
-	}
-
-	// 署名の有無をチェック（空文字列は署名なしとして扱う）
-	fromSigValid = b.Payload.FromSignature != ""
-	toSigValid = b.Payload.ToSignature != ""
-
-	_ = signingData // 実際の署名検証はcryptoパッケージで行う
-	return fromSigValid, toSigValid, nil
+// HasSignatures は署名の有無を返す
+func (b *Block) HasSignatures() (hasFrom, hasTo bool) {
+	return b.Payload.FromSignature != "", b.Payload.ToSignature != ""
 }
 
 // BlockType はブロックの種類を表す

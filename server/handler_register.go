@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"regexp"
 )
 
 // handleRegister はノード登録を処理する
@@ -18,6 +19,29 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "Invalid JSON: "+err.Error())
+		return
+	}
+
+	// 入力バリデーション
+	if req.NodeName == "" {
+		writeError(w, http.StatusBadRequest, "node_name is required")
+		return
+	}
+	// ノード名は英数字・ハイフン・アンダースコアのみ許可（パストラバーサル防止）
+	if !regexp.MustCompile(`^[a-zA-Z0-9_-]+$`).MatchString(req.NodeName) {
+		writeError(w, http.StatusBadRequest, "node_name must contain only alphanumeric characters, hyphens, and underscores")
+		return
+	}
+	if req.NickName == "" {
+		writeError(w, http.StatusBadRequest, "nick_name is required")
+		return
+	}
+	if req.Address == "" {
+		writeError(w, http.StatusBadRequest, "address is required")
+		return
+	}
+	if req.PublicKey == "" {
+		writeError(w, http.StatusBadRequest, "public_key is required")
 		return
 	}
 

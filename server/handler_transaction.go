@@ -10,14 +10,41 @@ import (
 // レスポンス: {"status": "proposed", "message": "Transaction proposed to bob"}
 func (s *Server) handlePropose(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		From   string `json:"from"`
-		To     string `json:"to"`
-		Amount int64  `json:"amount"`
-		Title  string `json:"title"`
+		From          string `json:"from"`
+		To            string `json:"to"`
+		Amount        int64  `json:"amount"`
+		Title         string `json:"title"`
+		FromSignature string `json:"from_signature"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "Invalid JSON: "+err.Error())
+		return
+	}
+
+	// 入力バリデーション
+	if req.From == "" {
+		writeError(w, http.StatusBadRequest, "from is required")
+		return
+	}
+	if req.To == "" {
+		writeError(w, http.StatusBadRequest, "to is required")
+		return
+	}
+	if req.From == req.To {
+		writeError(w, http.StatusBadRequest, "from and to must be different")
+		return
+	}
+	if req.Amount <= 0 {
+		writeError(w, http.StatusBadRequest, "amount must be positive")
+		return
+	}
+	if req.Title == "" {
+		writeError(w, http.StatusBadRequest, "title is required")
+		return
+	}
+	if len(req.Title) > 200 {
+		writeError(w, http.StatusBadRequest, "title must be 200 characters or less")
 		return
 	}
 
@@ -28,7 +55,7 @@ func (s *Server) handlePropose(w http.ResponseWriter, r *http.Request) {
 		Title:  req.Title,
 	}
 
-	if err := s.node.ProposeTransaction(data); err != nil {
+	if err := s.node.ProposeTransaction(data, req.FromSignature); err != nil {
 		writeError(w, http.StatusBadRequest, "Failed to propose transaction: "+err.Error())
 		return
 	}

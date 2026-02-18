@@ -8,7 +8,13 @@ import (
 	"net/http"
 	"signet/storage"
 	"sync"
+	"time"
 )
+
+// httpClient はタイムアウト付きHTTPクライアント
+var httpClient = &http.Client{
+	Timeout: 10 * time.Second,
+}
 
 // BroadcastBlock は全ピア（自分以外）にブロックを送信する
 // block は server.Block 型に変換済みのものを渡すこと
@@ -42,9 +48,9 @@ func sendBlock(addr string, block any) error {
 		return fmt.Errorf("failed to marshal block: %w", err)
 	}
 
-	// POSTリクエスト
+	// POSTリクエスト（タイムアウト付き）
 	url := fmt.Sprintf("http://%s/block", addr)
-	resp, err := http.Post(url, "application/json", bytes.NewReader(data))
+	resp, err := httpClient.Post(url, "application/json", bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}

@@ -3,6 +3,7 @@ package crypto
 import (
 	"crypto/ed25519"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"os"
@@ -138,4 +139,18 @@ func Base64ToPrivateKey(s string) (ed25519.PrivateKey, error) {
 // GetPublicKeyFromPrivateKey は秘密鍵から対応する公開鍵を取得する
 func GetPublicKeyFromPrivateKey(priv ed25519.PrivateKey) ed25519.PublicKey {
 	return priv.Public().(ed25519.PublicKey)
+}
+
+// HexToPublicKey はhexエンコードされた文字列から公開鍵を復元する
+func HexToPublicKey(s string) (ed25519.PublicKey, error) {
+	data, err := hex.DecodeString(s)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode hex public key: %w", err)
+	}
+
+	if len(data) != ed25519.PublicKeySize {
+		return nil, fmt.Errorf("invalid public key size: %d", len(data))
+	}
+
+	return ed25519.PublicKey(data), nil
 }
