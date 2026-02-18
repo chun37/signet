@@ -55,9 +55,11 @@ type BlockHeader struct {
 
 // BlockPayload はブロックのペイロードを表す
 type BlockPayload struct {
-	Type        string           `json:"type"`
-	Transaction *TransactionData `json:"transaction,omitempty"`
-	AddNode     *AddNodeData     `json:"add_node,omitempty"`
+	Type          string           `json:"type"`
+	Transaction   *TransactionData `json:"transaction,omitempty"`
+	AddNode       *AddNodeData     `json:"add_node,omitempty"`
+	FromSignature string           `json:"from_signature"`
+	ToSignature   string           `json:"to_signature"`
 }
 
 // TransactionData は金銭的取引のデータを表す

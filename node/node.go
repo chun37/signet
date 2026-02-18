@@ -519,7 +519,9 @@ func convertBlockToServer(b *core.Block) *server.Block {
 			Hash:      b.Header.Hash,
 		},
 		Payload: server.BlockPayload{
-			Type: b.Payload.Type,
+			Type:          b.Payload.Type,
+			FromSignature: b.Payload.FromSignature,
+			ToSignature:   b.Payload.ToSignature,
 		},
 	}
 
@@ -557,7 +559,9 @@ func convertServerToBlock(b *server.Block) *core.Block {
 			Hash:      b.Header.Hash,
 		},
 		Payload: core.BlockPayload{
-			Type: b.Payload.Type,
+			Type:          b.Payload.Type,
+			FromSignature: b.Payload.FromSignature,
+			ToSignature:   b.Payload.ToSignature,
 		},
 	}
 
