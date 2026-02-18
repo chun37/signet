@@ -1,4 +1,7 @@
-build:
+ui-build:
+	cd ui && npm ci && npm run build
+
+build: ui-build
 	go build -o signet .
 
 test:

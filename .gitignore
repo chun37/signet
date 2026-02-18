@@ -1,3 +1,5 @@
 signet
 *.tmp
 /etc/signet/
+ui/node_modules/
+ui/dist/

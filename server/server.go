@@ -3,10 +3,14 @@ package server
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
+
+	"signet/ui"
 )
 
 // NodeService はノードサービスのインターフェース
@@ -119,6 +123,25 @@ func NewServer(addr string, node NodeService) *Server {
 	mux.HandleFunc("GET /transaction/pending", s.handleGetPending)
 	mux.HandleFunc("POST /register", s.handleRegister)
 	mux.HandleFunc("GET /peers", s.handleGetPeers)
+	mux.HandleFunc("GET /info", s.handleGetInfo)
+
+	// UI 静的ファイル配信 + SPA フォールバック
+	distFS, _ := fs.Sub(ui.DistFS, "dist")
+	fileServer := http.FileServerFS(distFS)
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		if path == "" {
+			path = "index.html"
+		}
+		if f, err := distFS.Open(path); err == nil {
+			f.Close()
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+		// SPA フォールバック: 存在しないパスは index.html を返す
+		r.URL.Path = "/"
+		fileServer.ServeHTTP(w, r)
+	})
 
 	s.httpServer = &http.Server{
 		Addr:         addr,
