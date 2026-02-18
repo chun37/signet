@@ -56,7 +56,7 @@ func NewNode(cfg *config.Config) (*Node, error) {
 	var chain *core.Chain
 	if len(blocks) == 0 {
 		// ブロックがなければジェネシスブロックで初期化（フォールバック）
-		chain = core.NewChain(&core.AddNodeData{})
+		chain = core.NewChain()
 	} else {
 		// ストレージのブロックからチェーンを直接構築（ジェネシス二重生成を防止）
 		var chainErr error

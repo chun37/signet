@@ -13,8 +13,8 @@ type Chain struct {
 }
 
 // NewChain は新しいブロックチェーンを作成する
-func NewChain(addNode *AddNodeData) *Chain {
-	genesis := NewGenesisBlock(addNode)
+func NewChain() *Chain {
+	genesis := NewGenesisBlock()
 	hashSet := make(map[string]struct{})
 	hashSet[genesis.Header.Hash] = struct{}{}
 

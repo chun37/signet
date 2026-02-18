@@ -61,9 +61,12 @@ func NewBlock(index int, prevHash string, payload BlockPayload) *Block {
 }
 
 // NewGenesisBlock はジェネシスブロックを生成する
-// addNode に初期化ノードの情報を渡す
-func NewGenesisBlock(addNode *AddNodeData) *Block {
-	data, _ := json.Marshal(addNode)
+// 全ノード共通の固定データで生成し、チェーンのルートを統一する
+func NewGenesisBlock() *Block {
+	data, _ := json.Marshal(&AddNodeData{
+		NodeName: "genesis",
+		NickName: "Signet Network",
+	})
 	payload := BlockPayload{
 		Type:          "add_node",
 		Data:          json.RawMessage(data),
