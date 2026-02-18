@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"signet/config"
 	"signet/node"
-	"signet/p2p"
 	"signet/server"
 	"syscall"
 	"time"
@@ -29,20 +28,17 @@ func RunStart(args []string) {
 	}
 
 	// ピアからチェーン同期
-	peers, err := n.NodeStore.LoadAll()
-	if err != nil {
-		log.Printf("Warning: failed to load peers for sync: %v", err)
-	} else {
-		if len(peers) > 0 {
-			log.Println("Syncing chain with peers...")
-			if err := p2p.SyncChain(n.Chain, peers); err != nil {
-				log.Printf("Warning: chain sync failed: %v", err)
-			}
-		}
+	log.Println("Syncing chain with peers...")
+	if err := n.SyncChain(); err != nil {
+		log.Printf("Warning: chain sync failed: %v", err)
 	}
 
 	// HTTPサーバー起動
-	addr := fmt.Sprintf("%s:%s", cfg.Address, cfg.Port)
+	host, port := config.ParseAddress(cfg.Address)
+	if cfg.Port != "" && cfg.Port != config.DefaultPort {
+		port = cfg.Port
+	}
+	addr := fmt.Sprintf("%s:%s", host, port)
 	srv := server.NewServer(addr, n)
 
 	// サーバーをgoroutineで起動

@@ -21,10 +21,12 @@ type mockNodeService struct {
 	receiveErr  error
 	registerErr error
 
-	proposeCalled bool
-	approveCalled bool
+	proposeCalled  bool
+	approveCalled  bool
+	rejectCalled   bool
 	registerCalled bool
-	receiveCalled bool
+	receiveCalled  bool
+	rejectErr      error
 	broadcastBlock *Block
 }
 
@@ -57,6 +59,7 @@ func (m *mockNodeService) ApproveTransaction(id string) (*Block, error) {
 	}
 	block := &Block{
 		Header: BlockHeader{
+			Index:     1,
 			CreatedAt: time.Now().Unix(),
 			PrevHash:  "prev-hash",
 			Hash:      "test-block-hash",
@@ -87,6 +90,11 @@ func (m *mockNodeService) GetPending(id string) *PendingTransaction {
 	return nil
 }
 
+func (m *mockNodeService) RejectTransaction(id string) error {
+	m.rejectCalled = true
+	return m.rejectErr
+}
+
 func (m *mockNodeService) RegisterNode(nodeName, nickName, address, publicKey string) (*Block, error) {
 	m.registerCalled = true
 	if m.registerErr != nil {
@@ -94,6 +102,7 @@ func (m *mockNodeService) RegisterNode(nodeName, nickName, address, publicKey st
 	}
 	block := &Block{
 		Header: BlockHeader{
+			Index:     1,
 			CreatedAt: time.Now().Unix(),
 			PrevHash:  "prev-hash",
 			Hash:      "register-block-hash",
@@ -147,6 +156,7 @@ func TestHandleGetChain(t *testing.T) {
 	mockChain := []*Block{
 		{
 			Header: BlockHeader{
+				Index:     0,
 				CreatedAt: 1234567890,
 				PrevHash:  "",
 				Hash:      "genesis-hash",
@@ -206,6 +216,7 @@ func TestHandleReceiveBlock(t *testing.T) {
 
 	block := Block{
 		Header: BlockHeader{
+			Index:     1,
 			CreatedAt: time.Now().Unix(),
 			PrevHash:  "prev-hash",
 			Hash:      "test-hash",

@@ -24,6 +24,31 @@ func NewChain() *Chain {
 	}
 }
 
+// NewChainFromBlocks はストレージから読んだブロックでチェーンを構築する
+// ジェネシスブロックの二重生成を防ぐ
+func NewChainFromBlocks(blocks []*Block) (*Chain, error) {
+	if len(blocks) == 0 {
+		return nil, fmt.Errorf("blocks is empty")
+	}
+
+	if !blocks[0].IsGenesisBlock() {
+		return nil, fmt.Errorf("first block is not a genesis block")
+	}
+
+	hashSet := make(map[string]struct{})
+	for _, b := range blocks {
+		hashSet[b.Header.Hash] = struct{}{}
+	}
+
+	chain := &Chain{
+		blocks:  make([]*Block, len(blocks)),
+		hashSet: hashSet,
+	}
+	copy(chain.blocks, blocks)
+
+	return chain, nil
+}
+
 // AddBlock はブロックをチェーンに追加する
 func (c *Chain) AddBlock(b *Block) error {
 	c.mu.Lock()

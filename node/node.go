@@ -1,10 +1,13 @@
 package node
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"signet/config"
 	"signet/core"
 	"signet/crypto"
@@ -55,12 +58,11 @@ func NewNode(cfg *config.Config) (*Node, error) {
 		// ブロックがなければジェネシスブロックで初期化
 		chain = core.NewChain()
 	} else {
-		// ブロックがあればチェーンを構築
-		chain = core.NewChain()
-		for _, b := range blocks[1:] { // ジェネシスブロックはスキップ
-			if err := chain.AddBlock(b); err != nil {
-				log.Printf("Warning: failed to add block %d: %v", b.Header.Index, err)
-			}
+		// ストレージのブロックからチェーンを直接構築（ジェネシス二重生成を防止）
+		var chainErr error
+		chain, chainErr = core.NewChainFromBlocks(blocks)
+		if chainErr != nil {
+			return nil, fmt.Errorf("failed to build chain from blocks: %w", chainErr)
 		}
 	}
 
@@ -197,8 +199,43 @@ func (n *Node) ProposeTransaction(data *server.TransactionData, fromSignature st
 
 // sendProposeTransaction は指定したアドレスにトランザクション提案を送信する
 func (n *Node) sendProposeTransaction(addr string, tx *core.PendingTransaction) error {
-	// TODO: 実装（p2pパッケージに追加するか、ここで直接実装）
-	log.Printf("Sending proposed transaction to %s", addr)
+	txData, err := tx.GetTransactionData()
+	if err != nil {
+		return fmt.Errorf("failed to get transaction data: %w", err)
+	}
+
+	reqBody := struct {
+		From          string `json:"from"`
+		To            string `json:"to"`
+		Amount        int64  `json:"amount"`
+		Title         string `json:"title"`
+		FromSignature string `json:"from_signature"`
+	}{
+		From:          txData.From,
+		To:            txData.To,
+		Amount:        txData.Amount,
+		Title:         txData.Title,
+		FromSignature: tx.Payload.FromSignature,
+	}
+
+	data, err := json.Marshal(reqBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := fmt.Sprintf("http://%s/transaction/propose", addr)
+	resp, err := http.Post(url, "application/json", bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	log.Printf("Proposed transaction sent to %s", addr)
 	return nil
 }
 
@@ -251,6 +288,26 @@ func (n *Node) ApproveTransaction(id string) (*server.Block, error) {
 	}
 
 	return convertBlockToServer(block), nil
+}
+
+// RejectTransaction はトランザクションを拒否する
+func (n *Node) RejectTransaction(id string) error {
+	// プールから取得
+	pendingTx := n.PendingPool.Get(id)
+	if pendingTx == nil {
+		return fmt.Errorf("pending transaction not found: %s", id)
+	}
+
+	// プールから削除
+	n.PendingPool.Remove(id)
+
+	// 永続化
+	items := n.PendingPool.List()
+	if err := n.PendingStore.Save(items); err != nil {
+		log.Printf("Warning: failed to save pending transactions: %v", err)
+	}
+
+	return nil
 }
 
 // ListPending は全承認待ちトランザクションを返す
@@ -371,9 +428,6 @@ func (n *Node) BroadcastBlock(b *server.Block) {
 	n.broadcastLock.Lock()
 	defer n.broadcastLock.Unlock()
 
-	// core.Blockに変換
-	coreBlock := convertServerToBlock(b)
-
 	// ピア取得
 	peers, err := n.NodeStore.LoadAll()
 	if err != nil {
@@ -381,14 +435,85 @@ func (n *Node) BroadcastBlock(b *server.Block) {
 		return
 	}
 
-	// ブロードキャスト
-	p2p.BroadcastBlock(coreBlock, peers, n.Config.NodeName)
+	// server.Block をそのまま渡す（受信側も server.Block でデコードする）
+	p2p.BroadcastBlock(b, peers, n.Config.NodeName)
+}
+
+// SyncChain は全ピアからチェーンを取得し、最長チェーンで同期する
+func (n *Node) SyncChain() error {
+	peers, err := n.NodeStore.LoadAll()
+	if err != nil {
+		return fmt.Errorf("failed to load peers: %w", err)
+	}
+
+	var longestBlocks []*core.Block
+	maxLen := n.Chain.Len()
+
+	for name, peer := range peers {
+		if name == n.Config.NodeName {
+			continue
+		}
+
+		serverBlocks, err := n.fetchChain(peer.Address)
+		if err != nil {
+			log.Printf("Warning: failed to fetch chain from %s (%s): %v", name, peer.Address, err)
+			continue
+		}
+
+		// server.Block -> core.Block に変換
+		coreBlocks := make([]*core.Block, len(serverBlocks))
+		for i, sb := range serverBlocks {
+			coreBlocks[i] = convertServerToBlock(sb)
+		}
+
+		if len(coreBlocks) > maxLen {
+			maxLen = len(coreBlocks)
+			longestBlocks = coreBlocks
+		}
+	}
+
+	// 自分より長いチェーンが見つかった場合は置換
+	if longestBlocks != nil && len(longestBlocks) > n.Chain.Len() {
+		if err := n.Chain.ReplaceChain(longestBlocks); err != nil {
+			return fmt.Errorf("failed to replace chain: %w", err)
+		}
+		// 永続化
+		if err := n.BlockStore.ReplaceAll(longestBlocks); err != nil {
+			return fmt.Errorf("failed to persist replaced chain: %w", err)
+		}
+		log.Printf("Chain synced: %d blocks", len(longestBlocks))
+	}
+
+	return nil
+}
+
+// fetchChain は指定したアドレスからチェーンを取得する
+func (n *Node) fetchChain(addr string) ([]*server.Block, error) {
+	url := fmt.Sprintf("http://%s/chain", addr)
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	var blocks []*server.Block
+	if err := json.NewDecoder(resp.Body).Decode(&blocks); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return blocks, nil
 }
 
 // convertBlockToServer はcore.Blockをserver.Blockに変換する
 func convertBlockToServer(b *core.Block) *server.Block {
 	serverBlock := &server.Block{
 		Header: server.BlockHeader{
+			Index:     b.Header.Index,
 			CreatedAt: b.Header.CreatedAt.Unix(),
 			PrevHash:  b.Header.PrevHash,
 			Hash:      b.Header.Hash,
@@ -426,6 +551,7 @@ func convertBlockToServer(b *core.Block) *server.Block {
 func convertServerToBlock(b *server.Block) *core.Block {
 	coreBlock := &core.Block{
 		Header: core.BlockHeader{
+			Index:     b.Header.Index,
 			CreatedAt: time.Unix(b.Header.CreatedAt, 0).UTC(),
 			PrevHash:  b.Header.PrevHash,
 			Hash:      b.Header.Hash,

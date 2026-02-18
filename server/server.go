@@ -23,6 +23,9 @@ type NodeService interface {
 	ListPending() []*PendingTransaction
 	GetPending(id string) *PendingTransaction
 
+	// Transaction rejection
+	RejectTransaction(id string) error
+
 	// Registration
 	RegisterNode(nodeName, nickName, address, publicKey string) (*Block, error)
 
@@ -44,6 +47,7 @@ type Block struct {
 
 // BlockHeader はブロックのヘッダーを表す
 type BlockHeader struct {
+	Index     int    `json:"index"`
 	CreatedAt int64  `json:"created_at"`
 	PrevHash  string `json:"prev_hash"`
 	Hash      string `json:"hash"`
@@ -109,6 +113,7 @@ func NewServer(addr string, node NodeService) *Server {
 	mux.HandleFunc("POST /block", s.handleReceiveBlock)
 	mux.HandleFunc("POST /transaction/propose", s.handlePropose)
 	mux.HandleFunc("POST /transaction/approve", s.handleApprove)
+	mux.HandleFunc("POST /transaction/reject", s.handleReject)
 	mux.HandleFunc("GET /transaction/pending", s.handleGetPending)
 	mux.HandleFunc("POST /register", s.handleRegister)
 	mux.HandleFunc("GET /peers", s.handleGetPeers)

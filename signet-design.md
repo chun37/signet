@@ -31,44 +31,44 @@ P2Pゴシップ型。各ノードが対等にチェーンを保持し、ブロ�
 | フィールド | 型 | 説明 |
 |---|---|---|
 | Index | int | ブロック番号 |
-| Timestamp | time.Time | ブロック作成日時 |
-| Transaction | Transaction | トランザクション（1ブロック1トランザクション） |
+| CreatedAt | time.Time | ブロック作成日時 |
 | PrevHash | string | 前ブロックのSHA-256ハッシュ |
 | Hash | string | このブロックのSHA-256ハッシュ |
 
-ハッシュ計算の対象: Index + Timestamp + Transaction + PrevHash を文字列連結しSHA-256で算出。
+ハッシュ計算の対象: Index + CreatedAt(RFC3339) + PrevHash + Payload(JSON) を文字列連結しSHA-256で算出。
 
-### 2.2 Transaction
+### 2.2 BlockPayload
 
 汎用的なペイロード構造を採用し、種別ごとに異なるデータを格納する。
 
 | フィールド | 型 | 説明 |
 |---|---|---|
-| Type | string | トランザクション種別 |
-| Payload | json.RawMessage | 種別に応じた任意のJSON |
-| Signature | string（またはバイト列） | 署名（種別により複数） |
+| Type | string | ペイロード種別 ("transaction" / "add_node") |
+| Data | json.RawMessage | 種別に応じた任意のJSON |
+| FromSignature | string | From側の署名 |
+| ToSignature | string | To側の署名 |
 
 ### 2.3 Payload定義
 
-#### Type: "register"（ユーザー登録）
+#### Type: "add_node"（ノード登録）
 
 | フィールド | 型 | 説明 |
 |---|---|---|
-| Username | string | ユーザー名 |
-| PublicKey | string | Ed25519公開鍵（Base64等） |
+| NodeName | string | ノード名 |
+| NickName | string | ニックネーム |
+| PublicKey | string | Ed25519公開鍵（hex） |
+| Address | string | ノードのアドレス |
 
-#### Type: "transfer"（貸し借り記録）
+#### Type: "transaction"（貸し借り記録）
 
 | フィールド | 型 | 説明 |
 |---|---|---|
-| From | string | 貸した人のユーザー名 |
-| To | string | 借りた人のユーザー名 |
-| Amount | int | 金額（円単位、整数） |
-| Memo | string | 用途メモ（例: 「飲み会代」） |
-| FromSignature | string | Fromの署名 |
-| ToSignature | string | Toの署名 |
+| From | string | 貸した人のノード名 |
+| To | string | 借りた人のノード名 |
+| Amount | int64 | 金額（円単位、整数） |
+| Title | string | 用途メモ（例: 「飲み会代」） |
 
-署名対象は Type + Payload の生バイト列。transfer では From と To の両者が署名する（双方合意）。
+署名対象は Type + Data の生バイト列。transaction では From と To の両者が署名する（双方合意）。
 
 ### 2.4 PendingTransaction（未承認トランザクション）
 
@@ -76,9 +76,9 @@ P2Pゴシップ型。各ノードが対等にチェーンを保持し、ブロ�
 
 | フィールド | 型 | 説明 |
 |---|---|---|
-| ID | string | UUID等の一意識別子 |
+| ID | string | SHA-256ベースの一意識別子 |
 | CreatedAt | time.Time | 提案日時 |
-| Transaction | Transaction | From署名済み、To署名未済のトランザクション |
+| Payload | BlockPayload | From署名済み、To署名未済のペイロード |
 
 ---
 
@@ -86,16 +86,16 @@ P2Pゴシップ型。各ノードが対等にチェーンを保持し、ブロ�
 
 ### 3.1 ジェネシスブロック
 
-チェーンの起点。トランザクションは空（またはダミー）、PrevHash は固定値 `"0"`。
+チェーンの起点。ペイロードは空のadd_node、PrevHash は固定値 `"0"`。
 
 ### 3.2 ブロック追加
 
 1. トランザクション（両者署名済み）を受け取る
 2. チェーン末尾ブロックの Hash を PrevHash にセット
-3. Index, Timestamp, Transaction を格納
-4. CalcHash でハッシュを計算し Hash に格納
+3. Index, CreatedAt, Payload を格納
+4. CalcBlockHash でハッシュを計算し Hash に格納
 5. チェーンに追加
-6. JSONL に追記
+6. block.jsonl に追記
 7. 全ピアにブロードキャスト
 
 ### 3.3 チェーン検証
@@ -125,8 +125,8 @@ P2Pゴシップ型。各ノードが対等にチェーンを保持し、ブロ�
 
 ### チェック3: トランザクション検証
 
-- register: ユーザー名の重複がないか
-- transfer: From の公開鍵で FromSignature を検証、To の公開鍵で ToSignature を検証。From と To が同一でないか、Amount が 0 以下でないか
+- add_node: ノード名の重複がないか
+- transaction: From の公開鍵で FromSignature を検証、To の公開鍵で ToSignature を検証。From と To が同一でないか、Amount が 0 以下でないか
 
 ### チェック4: 重複検知
 
@@ -146,7 +146,7 @@ P2Pゴシップ型。各ノードが対等にチェーンを保持し、ブロ�
 
 | 条件 | 対応 |
 |---|---|
-| 相手のチェーンが長い | 自分のチェーンを丸ごと置き換え |
+| 相手のチェーンが長い | 自分のチェーンを丸ごと置き換え（メモリ + block.jsonl を書き直し） |
 | 長さが同じ | 置き換えない（先着優先） |
 | 自分の方が長い | 置き換えない |
 
@@ -162,19 +162,19 @@ P2Pゴシップ型。各ノードが対等にチェーンを保持し、ブロ�
 
 各ユーザーが Ed25519 の秘密鍵・公開鍵ペアを持つ。Go 標準ライブラリ `crypto/ed25519` を使用。
 
-### 6.2 ユーザー登録
+### 6.2 ノード登録
 
-ユーザー名と公開鍵の紐付けをブロックチェーン上に記録する（Type: "register" のトランザクション）。全ノードが同じ登録情報を持てるため同期の問題が発生しない。
+ノード名と公開鍵の紐付けをブロックチェーン上に記録する（Type: "add_node" のトランザクション）。全ノードが同じ登録情報を持てるため同期の問題が発生しない。
 
-### 6.3 双方署名（transfer）
+### 6.3 双方署名（transaction）
 
 貸し借り記録は From と To の両者が署名しなければブロックに入らない。一方的な虚偽記録を防止する。
 
 ### 6.4 秘密鍵の管理
 
 - ローカルファイルに保存（PEM または Base64 エンコード）
-- 初回起動時に存在しなければ自動生成
-- 紛失した場合は新ユーザーとして再登録する運用
+- `signet init` で鍵ペアを生成しファイルに保存
+- 紛失した場合は新ノードとして再登録する運用
 
 ---
 
@@ -182,7 +182,7 @@ P2Pゴシップ型。各ノードが対等にチェーンを保持し、ブロ�
 
 ### 7.1 ピアディスカバリ
 
-起動時に設定ファイルから既知ピアリストを読み込む。新ピアの追加は API 経由。
+起動時にノード設定ディレクトリ（/etc/signet/nodes/）から既知ピアリストを読み込む。新ピアの追加は `POST /register` API 経由。
 
 ### 7.2 ブロックブロードキャスト
 
@@ -190,7 +190,7 @@ P2Pゴシップ型。各ノードが対等にチェーンを保持し、ブロ�
 
 ### 7.3 チェーン同期
 
-ノードの新規参加・オフライン復帰時にピアへ `GET /chain` を発行し、最長チェーンルールで同期。
+ノードの新規参加・オフライン復帰時にピアへ `GET /chain` を発行し、最長チェーンルールで同期。同期後は block.jsonl に永続化。
 
 ---
 
@@ -205,11 +205,11 @@ P2Pゴシップ型。各ノードが対等にチェーンを保持し、ブロ�
 | POST | /transaction/approve | 未承認トランザクションをIDで指定して承認。To署名を追加しブロック生成→ブロードキャスト |
 | POST | /transaction/reject | 未承認トランザクションをIDで指定して拒否。pendingから削除 |
 
-### 8.2 ユーザー登録
+### 8.2 ノード登録
 
 | メソッド | パス | 説明 |
 |---|---|---|
-| POST | /register | ユーザー登録（registerトランザクションをブロック生成→ブロードキャスト） |
+| POST | /register | ノード登録（add_nodeブロック生成→ブロードキャスト） |
 
 ### 8.3 同期系
 
@@ -223,7 +223,6 @@ P2Pゴシップ型。各ノードが対等にチェーンを保持し、ブロ�
 | メソッド | パス | 説明 |
 |---|---|---|
 | GET | /peers | 既知ピアリストを返却 |
-| POST | /peers | 新しいピアを登録 |
 
 ---
 
@@ -231,31 +230,34 @@ P2Pゴシップ型。各ノードが対等にチェーンを保持し、ブロ�
 
 | 対象 | 形式 | ファイル名 |
 |---|---|---|
-| ブロックチェーン | JSONL（1行1ブロック、追記方式） | signet.jsonl |
-| 未承認トランザクション | JSONL | signet-pending.jsonl |
-| ピアリスト | JSON（上書き方式） | signet-peers.json |
-| 秘密鍵 | PEM / Base64 | signet.key |
+| ブロックチェーン | JSONL（1行1ブロック、追記方式） | block.jsonl |
+| 未承認トランザクション | JSON | pending_transaction.json |
+| ノード情報 | TOML（1ファイル/ノード） | nodes/{nodename} |
+| 秘密鍵 | PEM | ed25519.priv |
+| 設定 | TOML | signet.conf |
+| PID | テキスト | signet.pid |
 
-最長チェーンルールによるチェーン置き換え時のみ、signet.jsonl を全体書き直し。
+最長チェーンルールによるチェーン置き換え時のみ、block.jsonl を全体書き直し。
 
 ---
 
 ## 10. ノード起動フロー
 
-1. 秘密鍵ファイル（signet.key）を読み込む。存在しなければ鍵ペアを生成しファイルに保存
-2. チェーンファイル（signet.jsonl）を読み込む。存在しなければジェネシスブロックを生成
-3. 未承認トランザクション（signet-pending.jsonl）を読み込む
-4. ピアリスト（signet-peers.json）を読み込む
-5. ピアに `GET /chain` を発行し、最長チェーンルールで同期
-6. HTTPサーバー起動、通常運用開始
+1. 設定ファイル（/etc/signet/signet.conf）を読み込む
+2. 秘密鍵ファイル（ed25519.priv）を読み込む
+3. ブロックチェーン（block.jsonl）を読み込み、チェーンを構築
+4. 未承認トランザクション（pending_transaction.json）を読み込む
+5. ノード情報（nodes/）を読み込む
+6. ピアに `GET /chain` を発行し、最長チェーンルールで同期（永続化含む）
+7. HTTPサーバー起動、通常運用開始
 
 ---
 
 ## 11. 実装順序
 
-1. データ構造（Block, Transaction, Payload 各種）
+1. データ構造（Block, BlockPayload, TransactionData, AddNodeData）
 2. ブロック生成・チェーン検証ロジック
-3. JSONL 永続化
+3. JSONL / JSON / TOML 永続化
 4. Ed25519 鍵生成・署名・検証
 5. HTTPエンドポイント（単体ノードとして動作確認）
 6. ピア間ブロードキャスト・チェーン同期

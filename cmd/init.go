@@ -15,7 +15,7 @@ import (
 func RunInit(args []string) {
 	// フラグ定義
 	fs := flag.NewFlagSet("init", flag.ExitOnError)
-	addr := fs.String("address", "", "ノードのアドレス (例: localhost:8080)")
+	addr := fs.String("address", "", "ノードのアドレス (例: 192.168.120.137)")
 	nickname := fs.String("nickname", "", "ニックネーム")
 	nodename := fs.String("nodename", "", "ノード名")
 

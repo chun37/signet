@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	defaultRootDir = "/etc/signet"
-	defaultPort    = "8080"
+	defaultRootDir  = "/etc/signet"
+	DefaultPort     = "8080"
 	defaultConfPath = "/etc/signet/signet.conf"
 )
 
@@ -30,7 +30,7 @@ func LoadConfig() (*Config, error) {
 func LoadConfigFrom(path string) (*Config, error) {
 	cfg := &Config{
 		RootDir: defaultRootDir,
-		Port:    defaultPort,
+		Port:    DefaultPort,
 	}
 
 	// 設定ファイルが存在しない場合はデフォルト値を返す
@@ -99,5 +99,5 @@ func ParseAddress(addr string) (host string, port string) {
 	if len(parts) == 2 {
 		return parts[0], parts[1]
 	}
-	return addr, defaultPort
+	return addr, DefaultPort
 }

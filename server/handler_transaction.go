@@ -76,6 +76,34 @@ func (s *Server) handleApprove(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleReject はトランザクション拒否を処理する
+// リクエスト: {"id": "uuid-xxx"}
+// レスポンス: {"status": "rejected", "message": "Transaction rejected"}
+func (s *Server) handleReject(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ID string `json:"id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid JSON: "+err.Error())
+		return
+	}
+
+	if err := s.node.RejectTransaction(req.ID); err != nil {
+		writeError(w, http.StatusBadRequest, "Failed to reject transaction: "+err.Error())
+		return
+	}
+
+	type response struct {
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	writeJSON(w, http.StatusOK, response{
+		Status:  "rejected",
+		Message: "Transaction rejected",
+	})
+}
+
 // handleGetPending は承認待ちトランザクションの一覧を返す
 func (s *Server) handleGetPending(w http.ResponseWriter, r *http.Request) {
 	pending := s.node.ListPending()

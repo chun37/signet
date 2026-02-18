@@ -1,0 +1,3 @@
+signet
+*.tmp
+/etc/signet/

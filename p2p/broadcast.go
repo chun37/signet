@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"signet/core"
 	"signet/storage"
 	"sync"
 )
 
 // BroadcastBlock は全ピア（自分以外）にブロックを送信する
-func BroadcastBlock(block *core.Block, peers map[string]*storage.NodeInfo, selfName string) {
+// block は server.Block 型に変換済みのものを渡すこと
+func BroadcastBlock(block any, peers map[string]*storage.NodeInfo, selfName string) {
 	var wg sync.WaitGroup
 
 	for name, peer := range peers {
@@ -35,7 +35,7 @@ func BroadcastBlock(block *core.Block, peers map[string]*storage.NodeInfo, selfN
 }
 
 // sendBlock は指定したアドレスにブロックをPOSTする
-func sendBlock(addr string, block *core.Block) error {
+func sendBlock(addr string, block any) error {
 	// JSONエンコード
 	data, err := json.Marshal(block)
 	if err != nil {

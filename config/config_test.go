@@ -15,8 +15,8 @@ func TestLoadConfigFrom(t *testing.T) {
 		if cfg.RootDir != defaultRootDir {
 			t.Errorf("RootDir = %v, want %v", cfg.RootDir, defaultRootDir)
 		}
-		if cfg.Port != defaultPort {
-			t.Errorf("Port = %v, want %v", cfg.Port, defaultPort)
+		if cfg.Port != DefaultPort {
+			t.Errorf("Port = %v, want %v", cfg.Port, DefaultPort)
 		}
 	})
 
@@ -81,8 +81,8 @@ NickName = TestUser
 		if cfg.NickName != "TestUser" {
 			t.Errorf("NickName = %v, want TestUser", cfg.NickName)
 		}
-		if cfg.Port != defaultPort {
-			t.Errorf("Port = %v, want %v", cfg.Port, defaultPort)
+		if cfg.Port != DefaultPort {
+			t.Errorf("Port = %v, want %v", cfg.Port, DefaultPort)
 		}
 	})
 }
@@ -161,7 +161,7 @@ func TestParseAddress(t *testing.T) {
 			name:     "host without port",
 			addr:     "10.0.0.1",
 			wantHost: "10.0.0.1",
-			wantPort: defaultPort,
+			wantPort: DefaultPort,
 		},
 		{
 			name:     "localhost with port",
@@ -173,7 +173,7 @@ func TestParseAddress(t *testing.T) {
 			name:     "localhost without port",
 			addr:     "localhost",
 			wantHost: "localhost",
-			wantPort: defaultPort,
+			wantPort: DefaultPort,
 		},
 	}
 
