@@ -1,6 +1,10 @@
 import { useState, useEffect, type FormEvent } from 'react'
-import { usePeers } from '../hooks/usePeers'
-import { api } from '../api/client'
+import { usePeers } from '@/hooks/usePeers'
+import { api } from '@/api/client'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 export default function Propose() {
   const { peers, loading: peersLoading } = usePeers()
@@ -16,7 +20,7 @@ export default function Propose() {
   }, [])
 
   if (peersLoading) {
-    return <div className="loading">Loading...</div>
+    return <div className="py-8 text-center text-muted-foreground">Loading...</div>
   }
 
   const peerList = Object.values(peers).filter(p => p.name !== nodeName)
@@ -36,88 +40,85 @@ export default function Propose() {
         amount: amt,
         title: title.trim(),
       })
-      setMessage({ type: 'success', text: 'Transaction proposed successfully' })
+      setMessage({ type: 'success', text: '立替を記録しました' })
       setTo('')
       setAmount('')
       setTitle('')
     } catch (e) {
-      setMessage({ type: 'error', text: e instanceof Error ? e.message : 'Failed to propose' })
+      setMessage({ type: 'error', text: e instanceof Error ? e.message : '記録に失敗しました' })
     } finally {
       setSubmitting(false)
     }
   }
 
   return (
-    <div>
-      <h1 className="page-title">Propose Transaction</h1>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">立替を記録</h1>
 
       {message && (
-        <div className={`alert alert-${message.type}`}>{message.text}</div>
+        <Alert variant={message.type === 'error' ? 'destructive' : 'default'}>
+          <AlertDescription>{message.text}</AlertDescription>
+        </Alert>
       )}
 
-      <div className="card" style={{ maxWidth: 480 }}>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">From</label>
-            <input
-              className="form-input"
-              value={peers[nodeName]?.nick_name ?? nodeName}
-              disabled
-            />
-          </div>
+      <Card className="max-w-md">
+        <CardHeader>
+          <CardTitle>新しい立替</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-sm text-muted-foreground">立替えた人</label>
+              <Input value={peers[nodeName]?.nick_name ?? nodeName} disabled />
+            </div>
 
-          <div className="form-group">
-            <label className="form-label">To</label>
-            <select
-              className="form-select"
-              value={to}
-              onChange={e => setTo(e.target.value)}
-              required
-            >
-              <option value="">Select recipient</option>
-              {peerList.map(p => (
-                <option key={p.name} value={p.name}>
-                  {p.nick_name} ({p.name})
-                </option>
-              ))}
-            </select>
-          </div>
+            <div className="space-y-1.5">
+              <label className="text-sm text-muted-foreground">請求先</label>
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={to}
+                onChange={e => setTo(e.target.value)}
+                required
+              >
+                <option value="">請求先を選択</option>
+                {peerList.map(p => (
+                  <option key={p.name} value={p.name}>
+                    {p.nick_name} ({p.name})
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div className="form-group">
-            <label className="form-label">Amount</label>
-            <input
-              className="form-input"
-              type="number"
-              min="1"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              placeholder="1000"
-              required
-            />
-          </div>
+            <div className="space-y-1.5">
+              <label className="text-sm text-muted-foreground">金額</label>
+              <Input
+                type="number"
+                min="1"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                placeholder="1000"
+                required
+              />
+            </div>
 
-          <div className="form-group">
-            <label className="form-label">Title</label>
-            <input
-              className="form-input"
-              type="text"
-              maxLength={200}
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="e.g. Dinner split"
-              required
-            />
-          </div>
+            <div className="space-y-1.5">
+              <label className="text-sm text-muted-foreground">内容</label>
+              <Input
+                type="text"
+                maxLength={200}
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="例: 飲み会代"
+                required
+              />
+            </div>
 
-          <button
-            className="btn btn-primary"
-            type="submit"
-            disabled={submitting}
-          >
-            {submitting ? 'Submitting...' : 'Propose'}
-          </button>
-        </form>
-      </div>
+            <Button type="submit" disabled={submitting} className="w-full">
+              {submitting ? '送信中...' : '送信'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   )
 }

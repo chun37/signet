@@ -1,39 +1,34 @@
-import { usePeers } from '../hooks/usePeers'
+import { usePeers } from '@/hooks/usePeers'
+import { Card, CardContent } from '@/components/ui/card'
 
 export default function Nodes() {
   const { peers, loading } = usePeers()
 
   if (loading) {
-    return <div className="loading">Loading...</div>
+    return <div className="py-8 text-center text-muted-foreground">Loading...</div>
   }
 
   const nodes = Object.values(peers)
 
   return (
-    <div>
-      <h1 className="page-title">Nodes</h1>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">Nodes</h1>
 
       {nodes.length === 0 ? (
-        <div className="empty">No nodes registered</div>
+        <p className="py-8 text-center text-muted-foreground">No nodes registered</p>
       ) : (
-        <div className="card-grid">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {nodes.map(node => (
-            <div key={node.name} className="card">
-              <div style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.25rem' }}>
-                {node.nick_name}
-              </div>
-              <div style={{ color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-                {node.name}
-              </div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                <div style={{ marginBottom: '0.25rem' }}>
-                  Address: <span style={{ color: 'var(--text-primary)' }}>{node.address}</span>
+            <Card key={node.name}>
+              <CardContent className="space-y-2 pt-4 pb-4">
+                <p className="text-lg font-bold">{node.nick_name}</p>
+                <p className="text-sm text-muted-foreground">{node.name}</p>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <p>Address: <span className="text-foreground">{node.address}</span></p>
+                  <p>Public Key: <span className="font-mono text-xs">{node.public_key.slice(0, 16)}...</span></p>
                 </div>
-                <div>
-                  Public Key: <span className="hash">{node.public_key.slice(0, 16)}...</span>
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}

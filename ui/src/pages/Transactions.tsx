@@ -1,5 +1,9 @@
-import { useChain } from '../hooks/useChain'
-import { usePeers } from '../hooks/usePeers'
+import { useChain } from '@/hooks/useChain'
+import { usePeers } from '@/hooks/usePeers'
+import {
+  Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
+} from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
 
 function formatDate(unix: number): string {
   if (unix === 0) return '-'
@@ -15,76 +19,68 @@ export default function Transactions() {
   const { loading: peersLoading, nickName } = usePeers()
 
   if (chainLoading || peersLoading) {
-    return <div className="loading">Loading...</div>
+    return <div className="py-8 text-center text-muted-foreground">Loading...</div>
   }
 
-  // Reverse to show newest first, skip genesis
   const blocks = [...chain].reverse()
 
   return (
-    <div>
-      <h1 className="page-title">Transactions</h1>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">立替履歴</h1>
 
       {blocks.length === 0 ? (
-        <div className="empty">No blocks in chain</div>
+        <p className="py-8 text-center text-muted-foreground">ブロックがありません</p>
       ) : (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Type</th>
-                <th>Details</th>
-                <th style={{ textAlign: 'right' }}>Amount</th>
-                <th>Date</th>
-                <th>Hash</th>
-              </tr>
-            </thead>
-            <tbody>
-              {blocks.map(block => (
-                <tr key={block.header.index}>
-                  <td>{block.header.index}</td>
-                  <td>
-                    {block.payload.type === 'transaction' ? 'TX' : 'Node'}
-                  </td>
-                  <td>
-                    {block.payload.type === 'transaction' && block.payload.transaction ? (
-                      <>
-                        <strong>{nickName(block.payload.transaction.from)}</strong>
-                        {' \u2192 '}
-                        <strong>{nickName(block.payload.transaction.to)}</strong>
-                        <br />
-                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                          {block.payload.transaction.title}
-                        </span>
-                      </>
-                    ) : block.payload.add_node ? (
-                      <>
-                        <strong>{block.payload.add_node.nick_name}</strong>
-                        <span style={{ color: 'var(--text-secondary)' }}>
-                          {' '}({block.payload.add_node.node_name})
-                        </span>
-                      </>
-                    ) : '-'}
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    {block.payload.transaction ? (
-                      <span className="amount">
-                        {formatAmount(block.payload.transaction.amount)}
-                      </span>
-                    ) : '-'}
-                  </td>
-                  <td style={{ whiteSpace: 'nowrap' }}>
-                    {formatDate(block.header.created_at)}
-                  </td>
-                  <td>
-                    <span className="hash">{block.header.hash.slice(0, 12)}...</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-12">#</TableHead>
+              <TableHead className="w-16">種別</TableHead>
+              <TableHead>内容</TableHead>
+              <TableHead className="text-right">金額</TableHead>
+              <TableHead>日時</TableHead>
+              <TableHead>ハッシュ</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {blocks.map(block => (
+              <TableRow key={block.header.index}>
+                <TableCell>{block.header.index}</TableCell>
+                <TableCell>
+                  <Badge variant={block.payload.type === 'transaction' ? 'default' : 'secondary'}>
+                    {block.payload.type === 'transaction' ? '立替' : 'ノード'}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {block.payload.type === 'transaction' && block.payload.transaction ? (
+                    <div>
+                      <span className="font-medium">{nickName(block.payload.transaction.from)}</span>
+                      {' \u2192 '}
+                      <span className="font-medium">{nickName(block.payload.transaction.to)}</span>
+                      <p className="text-sm text-muted-foreground">{block.payload.transaction.title}</p>
+                    </div>
+                  ) : block.payload.add_node ? (
+                    <div>
+                      <span className="font-medium">{block.payload.add_node.nick_name}</span>
+                      <span className="text-muted-foreground"> ({block.payload.add_node.node_name})</span>
+                    </div>
+                  ) : '-'}
+                </TableCell>
+                <TableCell className="text-right font-mono font-semibold">
+                  {block.payload.transaction ? `${formatAmount(block.payload.transaction.amount)} 円` : '-'}
+                </TableCell>
+                <TableCell className="text-nowrap">
+                  {formatDate(block.header.created_at)}
+                </TableCell>
+                <TableCell>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {block.header.hash.slice(0, 12)}...
+                  </span>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
     </div>
   )

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { NodeInfo } from '../api/types'
-import { api } from '../api/client'
+import type { NodeInfo } from '@/api/types'
+import { api } from '@/api/client'
 
 export function usePeers() {
   const [peers, setPeers] = useState<Record<string, NodeInfo>>({})

@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import Layout from './components/Layout'
-import Dashboard from './pages/Dashboard'
-import Transactions from './pages/Transactions'
-import Pending from './pages/Pending'
-import Propose from './pages/Propose'
-import Nodes from './pages/Nodes'
+import Layout from '@/components/Layout'
+import Dashboard from '@/pages/Dashboard'
+import Transactions from '@/pages/Transactions'
+import Pending from '@/pages/Pending'
+import Propose from '@/pages/Propose'
+import Nodes from '@/pages/Nodes'
 
 export default function App() {
   return (

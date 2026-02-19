@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { PendingTransaction } from '../api/types'
-import { api } from '../api/client'
+import type { PendingTransaction } from '@/api/types'
+import { api } from '@/api/client'
 
 export function usePending() {
   const [pending, setPending] = useState<PendingTransaction[]>([])

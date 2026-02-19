@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { Block } from '../api/types'
-import { api } from '../api/client'
+import type { Block } from '@/api/types'
+import { api } from '@/api/client'
 
 export function useChain() {
   const [chain, setChain] = useState<Block[]>([])
