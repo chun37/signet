@@ -498,7 +498,7 @@ func (n *Node) RegisterNode(nodeName, nickName, address, publicKey string) (*ser
 	nodeInfo := &storage.NodeInfo{
 		Name:      nodeName,
 		NickName:  nickName,
-		Address:   address,
+		Address:   config.NormalizeAddress(address),
 		PublicKey: publicKey,
 	}
 	if err := n.NodeStore.Save(nodeName, nodeInfo); err != nil {

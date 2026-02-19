@@ -82,7 +82,7 @@ func RunInit(args []string) {
 	nodeInfo := &storage.NodeInfo{
 		Name:      *nodename,
 		NickName:  *nickname,
-		Address:   *addr,
+		Address:   config.NormalizeAddress(*addr),
 		PublicKey: pubKeyHex,
 	}
 	if err := nodeStore.Save(*nodename, nodeInfo); err != nil {

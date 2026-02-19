@@ -101,3 +101,10 @@ func ParseAddress(addr string) (host string, port string) {
 	}
 	return addr, DefaultPort
 }
+
+// NormalizeAddress はアドレスにポートが含まれていなければデフォルトポートを付与する
+// "192.168.1.1" → "192.168.1.1:8080", "192.168.1.1:9090" → "192.168.1.1:9090"
+func NormalizeAddress(addr string) string {
+	host, port := ParseAddress(addr)
+	return host + ":" + port
+}
