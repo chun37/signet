@@ -130,8 +130,14 @@ func (s *Server) handleReject(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleGetPending は承認待ちトランザクションの一覧を返す
+// handleGetPending は自ノード宛の承認待ちトランザクションの一覧を返す
 func (s *Server) handleGetPending(w http.ResponseWriter, r *http.Request) {
 	pending := s.node.ListPending()
 	writeJSON(w, http.StatusOK, pending)
+}
+
+// handleGetProposed は自ノードが提案した承認待ちトランザクションの一覧を返す
+func (s *Server) handleGetProposed(w http.ResponseWriter, r *http.Request) {
+	proposed := s.node.ListProposed()
+	writeJSON(w, http.StatusOK, proposed)
 }

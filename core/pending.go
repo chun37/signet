@@ -120,6 +120,24 @@ func (p *PendingPool) GetByToNode(nodeName string) []*PendingTransaction {
 	return result
 }
 
+// GetByFromNode は指定したノードが提案したトランザクションを返す
+func (p *PendingPool) GetByFromNode(nodeName string) []*PendingTransaction {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	var result []*PendingTransaction
+	for _, pt := range p.items {
+		if pt.Payload.Type == "transaction" {
+			var txData TransactionData
+			if err := json.Unmarshal(pt.Payload.Data, &txData); err == nil && txData.From == nodeName {
+				result = append(result, pt)
+			}
+		}
+	}
+
+	return result
+}
+
 // NewPendingTransaction は新しい承認待ちトランザクションを作成する
 func NewPendingTransaction(id string, payload BlockPayload) *PendingTransaction {
 	return &PendingTransaction{

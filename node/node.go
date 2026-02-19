@@ -326,6 +326,11 @@ func (n *Node) ApproveTransaction(id string) (*server.Block, error) {
 		return nil, fmt.Errorf("failed to get transaction data: %w", err)
 	}
 
+	// 自ノードが受取側(to)であることを確認
+	if txData.To != n.Config.NodeName {
+		return nil, fmt.Errorf("only the recipient node can approve this transaction")
+	}
+
 	// 自分（To）の署名を追加（From署名と同じ形式: トランザクションデータに対して署名）
 	txDataBytes, err := json.Marshal(txData)
 	if err != nil {
@@ -371,6 +376,15 @@ func (n *Node) RejectTransaction(id string) error {
 		return fmt.Errorf("pending transaction not found: %s", id)
 	}
 
+	// 自ノードが受取側(to)であることを確認
+	txData, err := pendingTx.GetTransactionData()
+	if err != nil {
+		return fmt.Errorf("failed to get transaction data: %w", err)
+	}
+	if txData.To != n.Config.NodeName {
+		return fmt.Errorf("only the recipient node can reject this transaction")
+	}
+
 	// プールから削除
 	n.PendingPool.Remove(id)
 
@@ -383,9 +397,32 @@ func (n *Node) RejectTransaction(id string) error {
 	return nil
 }
 
-// ListPending は全承認待ちトランザクションを返す
+// ListPending は自ノード宛の承認待ちトランザクションを返す
 func (n *Node) ListPending() []*server.PendingTransaction {
-	items := n.PendingPool.List()
+	items := n.PendingPool.GetByToNode(n.Config.NodeName)
+	result := make([]*server.PendingTransaction, 0, len(items))
+	for _, item := range items {
+		txData, err := item.GetTransactionData()
+		if err != nil {
+			continue
+		}
+		result = append(result, &server.PendingTransaction{
+			Transaction: &server.TransactionData{
+				From:   txData.From,
+				To:     txData.To,
+				Amount: txData.Amount,
+				Title:  txData.Title,
+			},
+			FromSig: item.Payload.FromSignature,
+			ID:      item.ID,
+		})
+	}
+	return result
+}
+
+// ListProposed は自ノードが提案した承認待ちトランザクションを返す
+func (n *Node) ListProposed() []*server.PendingTransaction {
+	items := n.PendingPool.GetByFromNode(n.Config.NodeName)
 	result := make([]*server.PendingTransaction, 0, len(items))
 	for _, item := range items {
 		txData, err := item.GetTransactionData()

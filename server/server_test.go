@@ -81,6 +81,10 @@ func (m *mockNodeService) ListPending() []*PendingTransaction {
 	return m.pending
 }
 
+func (m *mockNodeService) ListProposed() []*PendingTransaction {
+	return m.pending
+}
+
 func (m *mockNodeService) GetPending(id string) *PendingTransaction {
 	for _, p := range m.pending {
 		if p.ID == id {

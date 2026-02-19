@@ -25,6 +25,7 @@ type NodeService interface {
 	ProposeTransaction(data *TransactionData, fromSignature string) error
 	ApproveTransaction(id string) (*Block, error)
 	ListPending() []*PendingTransaction
+	ListProposed() []*PendingTransaction
 	GetPending(id string) *PendingTransaction
 
 	// Transaction rejection
@@ -121,6 +122,7 @@ func NewServer(addr string, node NodeService) *Server {
 	mux.HandleFunc("POST /transaction/approve", s.handleApprove)
 	mux.HandleFunc("POST /transaction/reject", s.handleReject)
 	mux.HandleFunc("GET /transaction/pending", s.handleGetPending)
+	mux.HandleFunc("GET /transaction/proposed", s.handleGetProposed)
 	mux.HandleFunc("POST /register", s.handleRegister)
 	mux.HandleFunc("GET /peers", s.handleGetPeers)
 	mux.HandleFunc("GET /info", s.handleGetInfo)
